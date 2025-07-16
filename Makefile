@@ -301,8 +301,8 @@ helm-test: HELM_CHART_PATH = $(OUTPUT_DIR)/ai-gateway-helm-${HELM_CHART_VERSION}
 helm-test: helm-package  ## Test the helm chart with a dummy version.
 	@go tool helm show chart ${HELM_CHART_PATH} | grep -q "version: ${HELM_CHART_VERSION}"
 	@go tool helm show chart ${HELM_CHART_PATH} | grep -q "appVersion: ${TAG}"
-	@go tool helm template ${HELM_CHART_PATH} | grep -q "docker.io/envoyproxy/ai-gateway-extproc:${TAG}"
-	@go tool helm template ${HELM_CHART_PATH} | grep -q "docker.io/envoyproxy/ai-gateway-controller:${TAG}"
+	@go tool helm template ${HELM_CHART_PATH} | grep -q "docker.io/amagidevops/ai-gateway-extproc:${TAG}"
+	@go tool helm template ${HELM_CHART_PATH} | grep -q "docker.io/amagidevops/ai-gateway-controller:${TAG}"
 
 # This pushes the helm chart to the OCI registry, requiring the access to the registry endpoint.
 .PHONY: helm-push
