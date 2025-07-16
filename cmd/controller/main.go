@@ -66,7 +66,7 @@ func parseAndValidateFlags(args []string) (flags, error) {
 	)
 	extProcImagePtr := fs.String(
 		"extProcImage",
-		"docker.io/envoyproxy/ai-gateway-extproc:latest",
+		"docker.io/amagidevops/ai-gateway-extproc:latest",
 		"The image for the external processor",
 	)
 	extProcImagePullPolicyPtr := fs.String(

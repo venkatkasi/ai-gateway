@@ -142,7 +142,7 @@ Envoy AI Gateway requires Envoy Gateway version 1.3.0 or higher. For the best ex
 Envoy AI Gateway is built on top of Envoy Gateway. Install it using Helm and wait for the deployment to be ready:
 
 ```shell
-helm upgrade -i eg oci://docker.io/envoyproxy/gateway-helm \
+helm upgrade -i eg oci://docker.io/amagidevops/gateway-helm \
     --version v0.0.0-latest \
     --namespace envoy-gateway-system \
     --create-namespace

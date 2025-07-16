@@ -132,9 +132,9 @@ func initKindCluster(ctx context.Context) (err error) {
 
 	initLog("\tLoading Docker images into kind cluster")
 	for _, image := range []string{
-		"docker.io/envoyproxy/ai-gateway-controller:latest",
-		"docker.io/envoyproxy/ai-gateway-extproc:latest",
-		"docker.io/envoyproxy/ai-gateway-testupstream:latest",
+		"docker.io/amagidevops/ai-gateway-controller:latest",
+		"docker.io/amagidevops/ai-gateway-extproc:latest",
+		"docker.io/amagidevops/ai-gateway-testupstream:latest",
 	} {
 		cmd := exec.CommandContext(ctx, "go", "tool", "kind", "load", "docker-image", image, "--name", kindClusterName)
 		cmd.Stdout = os.Stdout

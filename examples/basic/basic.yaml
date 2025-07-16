@@ -373,7 +373,7 @@ spec:
     spec:
       containers:
         - name: testupstream
-          image: docker.io/envoyproxy/ai-gateway-testupstream:latest
+          image: docker.io/amagidevops/ai-gateway-testupstream:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080

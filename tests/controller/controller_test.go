@@ -51,7 +51,7 @@ var defaultSchema = aigv1a1.VersionedAPISchema{Name: aigv1a1.APISchemaOpenAI, Ve
 func TestStartControllers(t *testing.T) {
 	c, cfg, _ := testsinternal.NewEnvTest(t)
 	opts := controller.Options{
-		ExtProcImage:           "envoyproxy/ai-gateway-extproc:foo",
+		ExtProcImage:           "amagidevops/ai-gateway-extproc:foo",
 		EnableLeaderElection:   false,
 		DisableMutatingWebhook: true,
 	}
