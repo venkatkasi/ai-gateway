@@ -207,8 +207,8 @@ func TestXAmgIdLabelHandling(t *testing.T) {
 		pm.SetBackend(&filterapi.Backend{Name: "custom"})
 
 		pm.RecordTokenUsage(t.Context(), 10, 5, 15)
-		
-		// Check input tokens
+
+		// Check input tokens.
 		inputAttrs := attribute.NewSet(
 			attribute.Key(genaiAttributeOperationName).String(genaiOperationChat),
 			attribute.Key(genaiAttributeSystemName).String("custom"),
@@ -220,7 +220,7 @@ func TestXAmgIdLabelHandling(t *testing.T) {
 		assert.Equal(t, uint64(1), count)
 		assert.Equal(t, float64(10), sum)
 
-		// Check output tokens
+		// Check output tokens.
 		outputAttrs := attribute.NewSet(
 			attribute.Key(genaiAttributeOperationName).String(genaiOperationChat),
 			attribute.Key(genaiAttributeSystemName).String("custom"),
@@ -232,7 +232,7 @@ func TestXAmgIdLabelHandling(t *testing.T) {
 		assert.Equal(t, uint64(1), count)
 		assert.Equal(t, float64(5), sum)
 
-		// Check total tokens
+		// Check total tokens.
 		totalAttrs := attribute.NewSet(
 			attribute.Key(genaiAttributeOperationName).String(genaiOperationChat),
 			attribute.Key(genaiAttributeSystemName).String("custom"),
@@ -260,8 +260,8 @@ func TestXAmgIdLabelHandling(t *testing.T) {
 		pm.SetBackend(&filterapi.Backend{Name: "custom"})
 
 		pm.RecordTokenUsage(t.Context(), 10, 5, 15)
-		
-		// Check input tokens
+
+		// Check input tokens.
 		inputAttrs := attribute.NewSet(
 			attribute.Key(genaiAttributeOperationName).String(genaiOperationChat),
 			attribute.Key(genaiAttributeSystemName).String("custom"),
@@ -273,7 +273,7 @@ func TestXAmgIdLabelHandling(t *testing.T) {
 		assert.Equal(t, uint64(1), count)
 		assert.Equal(t, float64(10), sum)
 
-		// Check output tokens
+		// Check output tokens.
 		outputAttrs := attribute.NewSet(
 			attribute.Key(genaiAttributeOperationName).String(genaiOperationChat),
 			attribute.Key(genaiAttributeSystemName).String("custom"),
@@ -285,7 +285,7 @@ func TestXAmgIdLabelHandling(t *testing.T) {
 		assert.Equal(t, uint64(1), count)
 		assert.Equal(t, float64(5), sum)
 
-		// Check total tokens
+		// Check total tokens.
 		totalAttrs := attribute.NewSet(
 			attribute.Key(genaiAttributeOperationName).String(genaiOperationChat),
 			attribute.Key(genaiAttributeSystemName).String("custom"),
@@ -313,9 +313,9 @@ func TestXAmgIdLabelHandling(t *testing.T) {
 		pm.SetBackend(&filterapi.Backend{Name: "custom"})
 
 		pm.RecordTokenUsage(t.Context(), 10, 5, 15)
-		
-		// Since the current implementation is case-sensitive, X-Amg-Id won't be found
-		// So it should default to "unknown"
+
+		// Since the current implementation is case-sensitive, X-Amg-Id won't be found.
+		// So it should default to "unknown".
 		inputAttrs := attribute.NewSet(
 			attribute.Key(genaiAttributeOperationName).String(genaiOperationChat),
 			attribute.Key(genaiAttributeSystemName).String("custom"),
@@ -327,7 +327,7 @@ func TestXAmgIdLabelHandling(t *testing.T) {
 		assert.Equal(t, uint64(1), count)
 		assert.Equal(t, float64(10), sum)
 
-		// Check output tokens
+		// Check output tokens.
 		outputAttrs := attribute.NewSet(
 			attribute.Key(genaiAttributeOperationName).String(genaiOperationChat),
 			attribute.Key(genaiAttributeSystemName).String("custom"),
@@ -339,7 +339,7 @@ func TestXAmgIdLabelHandling(t *testing.T) {
 		assert.Equal(t, uint64(1), count)
 		assert.Equal(t, float64(5), sum)
 
-		// Check total tokens
+		// Check total tokens.
 		totalAttrs := attribute.NewSet(
 			attribute.Key(genaiAttributeOperationName).String(genaiOperationChat),
 			attribute.Key(genaiAttributeSystemName).String("custom"),

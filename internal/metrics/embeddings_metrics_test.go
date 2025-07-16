@@ -97,8 +97,8 @@ func TestEmbeddingsXAmgIdLabelHandling(t *testing.T) {
 		em.SetBackend(&filterapi.Backend{Name: "custom"})
 
 		em.RecordTokenUsage(t.Context(), 10, 10)
-		
-		// Check input tokens
+
+		// Check input tokens.
 		inputAttrs := attribute.NewSet(
 			attribute.Key(genaiAttributeOperationName).String(genaiOperationEmbedding),
 			attribute.Key(genaiAttributeSystemName).String("custom"),
@@ -110,7 +110,7 @@ func TestEmbeddingsXAmgIdLabelHandling(t *testing.T) {
 		assert.Equal(t, uint64(1), count)
 		assert.Equal(t, float64(10), sum)
 
-		// Check total tokens
+		// Check total tokens.
 		totalAttrs := attribute.NewSet(
 			attribute.Key(genaiAttributeOperationName).String(genaiOperationEmbedding),
 			attribute.Key(genaiAttributeSystemName).String("custom"),
@@ -138,9 +138,9 @@ func TestEmbeddingsXAmgIdLabelHandling(t *testing.T) {
 		em.SetBackend(&filterapi.Backend{Name: "custom"})
 
 		em.RecordTokenUsage(t.Context(), 10, 10)
-		
-		// Since the current implementation is case-sensitive, X-AMG-ID won't be found
-		// So it should default to "unknown"
+
+		// Since the current implementation is case-sensitive, X-AMG-ID won't be found.
+		// So it should default to "unknown".
 		inputAttrs := attribute.NewSet(
 			attribute.Key(genaiAttributeOperationName).String(genaiOperationEmbedding),
 			attribute.Key(genaiAttributeSystemName).String("custom"),
@@ -152,7 +152,7 @@ func TestEmbeddingsXAmgIdLabelHandling(t *testing.T) {
 		assert.Equal(t, uint64(1), count)
 		assert.Equal(t, float64(10), sum)
 
-		// Check total tokens
+		// Check total tokens.
 		totalAttrs := attribute.NewSet(
 			attribute.Key(genaiAttributeOperationName).String(genaiOperationEmbedding),
 			attribute.Key(genaiAttributeSystemName).String("custom"),
