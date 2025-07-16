@@ -23,7 +23,7 @@ type baseMetrics struct {
 	requestStart time.Time
 	model        string
 	backend      string
-	amgID        string  // Add this field to store x-amg-id header value
+	amgID        string  // Add this field to store x-amg-id header value.
 }
 
 // newBaseMetrics creates a new baseMetrics instance with the specified operation.
@@ -33,7 +33,7 @@ func newBaseMetrics(meter metric.Meter, operation string) baseMetrics {
 		operation: operation,
 		model:     "unknown",
 		backend:   "unknown",
-		amgID:     "unknown",  // Add this line
+		amgID:     "unknown",  // Add this line.
 	}
 }
 
@@ -69,7 +69,7 @@ func (b *baseMetrics) SetBackend(backend *filterapi.Backend) {
 
 // buildBaseAttributes creates the base attributes for metrics recording.
 func (b *baseMetrics) buildBaseAttributes(extraAttrs ...attribute.KeyValue) []attribute.KeyValue {
-	attrs := make([]attribute.KeyValue, 0, 4+len(extraAttrs))  // Increase capacity by 1
+	attrs := make([]attribute.KeyValue, 0, 4+len(extraAttrs))  // Increase capacity by 1..
 	attrs = append(attrs,
 		attribute.Key(genaiAttributeOperationName).String(b.operation),
 		attribute.Key(genaiAttributeSystemName).String(b.backend),
@@ -89,7 +89,7 @@ func (b *baseMetrics) RecordRequestCompletion(ctx context.Context, success bool,
 		b.metrics.requestLatency.Record(ctx, time.Since(b.requestStart).Seconds(), metric.WithAttributes(attrs...))
 	} else {
 		// We don't have a set of typed errors yet, or a set of low-cardinality values, so we can just set the value to the
-		// placeholder one. See: https://opentelemetry.io/docs/specs/semconv/attributes-registry/error/#error-type
+		// placeholder one. See: https://opentelemetry.io/docs/specs/semconv/attributes-registry/error/#error-type.
 		b.metrics.requestLatency.Record(ctx, time.Since(b.requestStart).Seconds(),
 			metric.WithAttributes(attrs...),
 			metric.WithAttributes(attribute.Key(genaiAttributeErrorType).String(genaiErrorTypeFallback)),
