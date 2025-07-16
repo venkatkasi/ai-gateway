@@ -25,6 +25,7 @@ func TestEmbeddings_RecordTokenUsage(t *testing.T) {
 		attribute.Key(genaiAttributeOperationName).String(genaiOperationEmbedding),
 		attribute.Key(genaiAttributeSystemName).String(genaiSystemOpenAI),
 		attribute.Key(genaiAttributeRequestModel).String("text-embedding-ada-002"),
+		attribute.Key("x_amg_id").String("unknown"),
 		extra,
 	}
 	inputAttrs := attribute.NewSet(append(attrs, attribute.Key(genaiAttributeTokenType).String(genaiTokenTypeInput))...)
@@ -59,6 +60,7 @@ func TestEmbeddings_RecordTokenUsage_MultipleRecords(t *testing.T) {
 		attribute.Key(genaiAttributeOperationName).String(genaiOperationEmbedding),
 		attribute.Key(genaiAttributeSystemName).String("custom-backend"),
 		attribute.Key(genaiAttributeRequestModel).String("text-embedding-3-small"),
+		attribute.Key("x_amg_id").String("unknown"),
 	}
 	inputAttrs := attribute.NewSet(append(attrs, attribute.Key(genaiAttributeTokenType).String(genaiTokenTypeInput))...)
 	totalAttrs := attribute.NewSet(append(attrs, attribute.Key(genaiAttributeTokenType).String(genaiTokenTypeTotal))...)
@@ -77,4 +79,56 @@ func TestEmbeddings_RecordTokenUsage_MultipleRecords(t *testing.T) {
 	count, sum = getHistogramValues(t, mr, genaiMetricClientTokenUsage, totalAttrs)
 	assert.Equal(t, uint64(3), count)
 	assert.Equal(t, 40.0, sum)
+}
+
+func TestEmbeddingsXAmgIdLabelHandling(t *testing.T) {
+	var (
+		mr    = sdkmetric.NewManualReader()
+		meter = sdkmetric.NewMeterProvider(sdkmetric.WithReader(mr)).Meter("test")
+		em    = NewEmbeddings(meter).(*embeddings)
+	)
+
+	t.Run("with x-amg-id header", func(t *testing.T) {
+		headers := map[string]string{
+			"x-amg-id": "test-amg-123",
+		}
+		em.StartRequest(headers)
+		em.SetModel("test-model")
+		em.SetBackend(&filterapi.Backend{Name: "custom"})
+
+		attrs := []attribute.KeyValue{
+			attribute.Key(genaiAttributeOperationName).String(genaiOperationEmbedding),
+			attribute.Key(genaiAttributeSystemName).String("custom"),
+			attribute.Key(genaiAttributeRequestModel).String("test-model"),
+			attribute.Key("x_amg_id").String("test-amg-123"),
+		}
+		attrsSet := attribute.NewSet(attrs...)
+
+		em.RecordTokenUsage(t.Context(), 10, 10)
+		count, sum := getHistogramValues(t, mr, genaiMetricClientTokenUsage, attrsSet)
+		assert.Equal(t, uint64(2), count) // input, total.
+		assert.Equal(t, float64(20), sum) // 10 + 10.
+	})
+
+	t.Run("case insensitive header lookup", func(t *testing.T) {
+		headers := map[string]string{
+			"X-AMG-ID": "test-amg-456",
+		}
+		em.StartRequest(headers)
+		em.SetModel("test-model")
+		em.SetBackend(&filterapi.Backend{Name: "custom"})
+
+		attrs := []attribute.KeyValue{
+			attribute.Key(genaiAttributeOperationName).String(genaiOperationEmbedding),
+			attribute.Key(genaiAttributeSystemName).String("custom"),
+			attribute.Key(genaiAttributeRequestModel).String("test-model"),
+			attribute.Key("x_amg_id").String("test-amg-456"),
+		}
+		attrsSet := attribute.NewSet(attrs...)
+
+		em.RecordTokenUsage(t.Context(), 10, 10)
+		count, sum := getHistogramValues(t, mr, genaiMetricClientTokenUsage, attrsSet)
+		assert.Equal(t, uint64(2), count) // input, total.
+		assert.Equal(t, float64(20), sum) // 10 + 10.
+	})
 }

@@ -56,6 +56,7 @@ func TestRecordTokenUsage(t *testing.T) {
 			attribute.Key(genaiAttributeOperationName).String(genaiOperationChat),
 			attribute.Key(genaiAttributeSystemName).String(genaiSystemOpenAI),
 			attribute.Key(genaiAttributeRequestModel).String("test-model"),
+			attribute.Key("x_amg_id").String("unknown"),
 			extra,
 		}
 		inputAttrs  = attribute.NewSet(append(attrs, attribute.Key(genaiAttributeTokenType).String(genaiTokenTypeInput))...)
@@ -91,6 +92,7 @@ func TestRecordTokenLatency(t *testing.T) {
 			attribute.Key(genaiAttributeOperationName).String(genaiOperationChat),
 			attribute.Key(genaiAttributeSystemName).String(genAISystemAWSBedrock),
 			attribute.Key(genaiAttributeRequestModel).String("test-model"),
+			attribute.Key("x_amg_id").String("unknown"),
 			extra,
 		)
 	)
@@ -133,6 +135,7 @@ func TestRecordRequestCompletion(t *testing.T) {
 			attribute.Key(genaiAttributeOperationName).String(genaiOperationChat),
 			attribute.Key(genaiAttributeSystemName).String("custom"),
 			attribute.Key(genaiAttributeRequestModel).String("test-model"),
+			attribute.Key("x_amg_id").String("unknown"),
 			extra,
 		}
 		attrsSuccess = attribute.NewSet(attrs...)
@@ -186,4 +189,78 @@ func getHistogramValues(t *testing.T, reader metric.Reader, metric string, attrs
 	require.Len(t, datapoints, 1, "found %d datapoints for attributes: %v", len(datapoints), attrs)
 
 	return datapoints[0].Count, datapoints[0].Sum
+}
+
+func TestXAmgIdLabelHandling(t *testing.T) {
+	var (
+		mr    = metric.NewManualReader()
+		meter = metric.NewMeterProvider(metric.WithReader(mr)).Meter("test")
+		pm    = DefaultChatCompletion(meter).(*chatCompletion)
+	)
+
+	t.Run("with x-amg-id header", func(t *testing.T) {
+		headers := map[string]string{
+			"x-amg-id": "test-amg-123",
+		}
+		pm.StartRequest(headers)
+		pm.SetModel("test-model")
+		pm.SetBackend(&filterapi.Backend{Name: "custom"})
+
+		attrs := []attribute.KeyValue{
+			attribute.Key(genaiAttributeOperationName).String(genaiOperationChat),
+			attribute.Key(genaiAttributeSystemName).String("custom"),
+			attribute.Key(genaiAttributeRequestModel).String("test-model"),
+			attribute.Key("x_amg_id").String("test-amg-123"),
+		}
+		attrsSet := attribute.NewSet(attrs...)
+
+		pm.RecordTokenUsage(t.Context(), 10, 5, 15)
+		count, sum := getHistogramValues(t, mr, genaiMetricClientTokenUsage, attrsSet)
+		assert.Equal(t, uint64(3), count) // input, output, total.
+		assert.Equal(t, float64(30), sum) // 10 + 5 + 15.
+	})
+
+	t.Run("without x-amg-id header", func(t *testing.T) {
+		headers := map[string]string{
+			"other-header": "value",
+		}
+		pm.StartRequest(headers)
+		pm.SetModel("test-model")
+		pm.SetBackend(&filterapi.Backend{Name: "custom"})
+
+		attrs := []attribute.KeyValue{
+			attribute.Key(genaiAttributeOperationName).String(genaiOperationChat),
+			attribute.Key(genaiAttributeSystemName).String("custom"),
+			attribute.Key(genaiAttributeRequestModel).String("test-model"),
+			attribute.Key("x_amg_id").String("unknown"),
+		}
+		attrsSet := attribute.NewSet(attrs...)
+
+		pm.RecordTokenUsage(t.Context(), 10, 5, 15)
+		count, sum := getHistogramValues(t, mr, genaiMetricClientTokenUsage, attrsSet)
+		assert.Equal(t, uint64(3), count) // input, output, total.
+		assert.Equal(t, float64(30), sum) // 10 + 5 + 15.
+	})
+
+	t.Run("case insensitive header lookup", func(t *testing.T) {
+		headers := map[string]string{
+			"X-Amg-Id": "test-amg-456",
+		}
+		pm.StartRequest(headers)
+		pm.SetModel("test-model")
+		pm.SetBackend(&filterapi.Backend{Name: "custom"})
+
+		attrs := []attribute.KeyValue{
+			attribute.Key(genaiAttributeOperationName).String(genaiOperationChat),
+			attribute.Key(genaiAttributeSystemName).String("custom"),
+			attribute.Key(genaiAttributeRequestModel).String("test-model"),
+			attribute.Key("x_amg_id").String("test-amg-456"),
+		}
+		attrsSet := attribute.NewSet(attrs...)
+
+		pm.RecordTokenUsage(t.Context(), 10, 5, 15)
+		count, sum := getHistogramValues(t, mr, genaiMetricClientTokenUsage, attrsSet)
+		assert.Equal(t, uint64(3), count) // input, output, total.
+		assert.Equal(t, float64(30), sum) // 10 + 5 + 15.
+	})
 }
