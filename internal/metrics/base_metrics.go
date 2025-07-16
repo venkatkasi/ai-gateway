@@ -41,7 +41,7 @@ func newBaseMetrics(meter metric.Meter, operation string) baseMetrics {
 func (b *baseMetrics) StartRequest(headers map[string]string) {
 	b.requestStart = time.Now()
 	
-	// Extract x-amg-id header if present
+	// Extract x-amg-id header if present.
 	if amgID, exists := headers["x-amg-id"]; exists {
 		b.amgID = amgID
 	} else {
@@ -74,7 +74,7 @@ func (b *baseMetrics) buildBaseAttributes(extraAttrs ...attribute.KeyValue) []at
 		attribute.Key(genaiAttributeOperationName).String(b.operation),
 		attribute.Key(genaiAttributeSystemName).String(b.backend),
 		attribute.Key(genaiAttributeRequestModel).String(b.model),
-		attribute.Key("x_amg_id").String(b.amgID),  // Add the new label
+		attribute.Key("x_amg_id").String(b.amgID),  // Add the new label.
 	)
 	attrs = append(attrs, extraAttrs...)
 	return attrs
