@@ -22,6 +22,7 @@ type baseMetrics struct {
 	requestStart time.Time
 	model        string
 	backend      string
+	amgID        string  // Add this field to store x-amg-id header value
 }
 
 // newBaseMetrics creates a new baseMetrics instance with the specified operation.
@@ -31,12 +32,20 @@ func newBaseMetrics(meter metric.Meter, operation string) baseMetrics {
 		operation: operation,
 		model:     "unknown",
 		backend:   "unknown",
+		amgID:     "unknown",  // Add this line
 	}
 }
 
 // StartRequest initializes timing for a new request.
-func (b *baseMetrics) StartRequest(_ map[string]string) {
+func (b *baseMetrics) StartRequest(headers map[string]string) {
 	b.requestStart = time.Now()
+	
+	// Extract x-amg-id header if present
+	if amgID, exists := headers["x-amg-id"]; exists {
+		b.amgID = amgID
+	} else {
+		b.amgID = "unknown"
+	}
 }
 
 // SetModel sets the model for the request.
@@ -59,11 +68,12 @@ func (b *baseMetrics) SetBackend(backend *filterapi.Backend) {
 
 // buildBaseAttributes creates the base attributes for metrics recording.
 func (b *baseMetrics) buildBaseAttributes(extraAttrs ...attribute.KeyValue) []attribute.KeyValue {
-	attrs := make([]attribute.KeyValue, 0, 3+len(extraAttrs))
+	attrs := make([]attribute.KeyValue, 0, 4+len(extraAttrs))  // Increase capacity by 1
 	attrs = append(attrs,
 		attribute.Key(genaiAttributeOperationName).String(b.operation),
 		attribute.Key(genaiAttributeSystemName).String(b.backend),
 		attribute.Key(genaiAttributeRequestModel).String(b.model),
+		attribute.Key("x_amg_id").String(b.amgID),  // Add the new label
 	)
 	attrs = append(attrs, extraAttrs...)
 	return attrs
