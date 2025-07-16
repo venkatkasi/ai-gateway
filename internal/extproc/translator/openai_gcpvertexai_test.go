@@ -44,13 +44,60 @@ func TestOpenAIToGCPVertexAITranslatorV1ChatCompletion_RequestBody(t *testing.T)
 }
 `)
 
+	wantBdyWithTools := []byte(`{
+    "contents": [
+        {
+            "parts": [
+                {
+                    "text": "What's the weather in San Francisco?"
+                }
+            ],
+            "role": "user"
+        }
+    ],
+    "tools": [
+        {
+            "functionDeclarations": [
+                {
+                    "name": "get_weather",
+                    "description": "Get the current weather in a given location",
+                    "parametersJsonSchema": {
+                        "type": "object",
+                        "properties": {
+                            "location": {
+                                "type": "string",
+                                "description": "The city and state, e.g. San Francisco, CA"
+                            },
+                            "unit": {
+                                "type": "string",
+                                "enum": ["celsius", "fahrenheit"]
+                            }
+                        },
+                        "required": ["location"]
+                    }
+                }
+            ]
+        }
+    ],
+    "generation_config": {},
+    "system_instruction": {
+        "parts": [
+            {
+                "text": "You are a helpful assistant"
+            }
+        ]
+    }
+}
+`)
+
 	tests := []struct {
-		name          string
-		input         openai.ChatCompletionRequest
-		onRetry       bool
-		wantError     bool
-		wantHeaderMut *extprocv3.HeaderMutation
-		wantBody      *extprocv3.BodyMutation
+		name              string
+		modelNameOverride string
+		input             openai.ChatCompletionRequest
+		onRetry           bool
+		wantError         bool
+		wantHeaderMut     *extprocv3.HeaderMutation
+		wantBody          *extprocv3.BodyMutation
 	}{
 		{
 			name: "basic request",
@@ -101,11 +148,132 @@ func TestOpenAIToGCPVertexAITranslatorV1ChatCompletion_RequestBody(t *testing.T)
 				},
 			},
 		},
+		{
+			name:              "model name override",
+			modelNameOverride: "gemini-flash",
+			input: openai.ChatCompletionRequest{
+				Stream: false,
+				Model:  "gemini-pro",
+				Messages: []openai.ChatCompletionMessageParamUnion{
+					{
+						Value: openai.ChatCompletionSystemMessageParam{
+							Content: openai.StringOrArray{
+								Value: "You are a helpful assistant",
+							},
+						},
+						Type: openai.ChatMessageRoleSystem,
+					},
+					{
+						Value: openai.ChatCompletionUserMessageParam{
+							Content: openai.StringOrUserRoleContentUnion{
+								Value: "Tell me about AI Gateways",
+							},
+						},
+						Type: openai.ChatMessageRoleUser,
+					},
+				},
+			},
+			onRetry:   false,
+			wantError: false,
+			// Since these are stub implementations, we expect nil mutations.
+			wantHeaderMut: &extprocv3.HeaderMutation{
+				SetHeaders: []*corev3.HeaderValueOption{
+					{
+						Header: &corev3.HeaderValue{
+							Key:      ":path",
+							RawValue: []byte("publishers/google/models/gemini-flash:generateContent"),
+						},
+					},
+					{
+						Header: &corev3.HeaderValue{
+							Key:      "Content-Length",
+							RawValue: []byte("185"),
+						},
+					},
+				},
+			},
+			wantBody: &extprocv3.BodyMutation{
+				Mutation: &extprocv3.BodyMutation_Body{
+					Body: wantBdy,
+				},
+			},
+		},
+		{
+			name: "request with tools",
+			input: openai.ChatCompletionRequest{
+				Stream: false,
+				Model:  "gemini-pro",
+				Messages: []openai.ChatCompletionMessageParamUnion{
+					{
+						Value: openai.ChatCompletionSystemMessageParam{
+							Content: openai.StringOrArray{
+								Value: "You are a helpful assistant",
+							},
+						},
+						Type: openai.ChatMessageRoleSystem,
+					},
+					{
+						Value: openai.ChatCompletionUserMessageParam{
+							Content: openai.StringOrUserRoleContentUnion{
+								Value: "What's the weather in San Francisco?",
+							},
+						},
+						Type: openai.ChatMessageRoleUser,
+					},
+				},
+				Tools: []openai.Tool{
+					{
+						Type: openai.ToolTypeFunction,
+						Function: &openai.FunctionDefinition{
+							Name:        "get_weather",
+							Description: "Get the current weather in a given location",
+							Parameters: map[string]interface{}{
+								"type": "object",
+								"properties": map[string]interface{}{
+									"location": map[string]interface{}{
+										"type":        "string",
+										"description": "The city and state, e.g. San Francisco, CA",
+									},
+									"unit": map[string]interface{}{
+										"type": "string",
+										"enum": []string{"celsius", "fahrenheit"},
+									},
+								},
+								"required": []string{"location"},
+							},
+						},
+					},
+				},
+			},
+			onRetry:   false,
+			wantError: false,
+			wantHeaderMut: &extprocv3.HeaderMutation{
+				SetHeaders: []*corev3.HeaderValueOption{
+					{
+						Header: &corev3.HeaderValue{
+							Key:      ":path",
+							RawValue: []byte("publishers/google/models/gemini-pro:generateContent"),
+						},
+					},
+					{
+						Header: &corev3.HeaderValue{
+							Key:      "Content-Length",
+							RawValue: []byte("528"),
+						},
+					},
+				},
+			},
+			wantBody: &extprocv3.BodyMutation{
+				Mutation: &extprocv3.BodyMutation_Body{
+					Body: wantBdyWithTools,
+				},
+			},
+		},
 	}
 
-	translator := NewChatCompletionOpenAIToGCPVertexAITranslator()
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			translator := NewChatCompletionOpenAIToGCPVertexAITranslator(tc.modelNameOverride)
 			headerMut, bodyMut, err := translator.RequestBody(nil, &tc.input, tc.onRetry)
 			if tc.wantError {
 				assert.Error(t, err)
@@ -127,12 +295,14 @@ func TestOpenAIToGCPVertexAITranslatorV1ChatCompletion_RequestBody(t *testing.T)
 func TestOpenAIToGCPVertexAITranslatorV1ChatCompletion_ResponseHeaders(t *testing.T) {
 	tests := []struct {
 		name          string
+		modelName     string
 		headers       map[string]string
 		wantError     bool
 		wantHeaderMut *extprocv3.HeaderMutation
 	}{
 		{
-			name: "basic headers",
+			name:      "basic headers",
+			modelName: "gemini-pro",
 			headers: map[string]string{
 				"content-type": "application/json",
 			},
@@ -142,9 +312,9 @@ func TestOpenAIToGCPVertexAITranslatorV1ChatCompletion_ResponseHeaders(t *testin
 		// TODO: Add more test cases when implementation is ready.
 	}
 
-	translator := NewChatCompletionOpenAIToGCPVertexAITranslator()
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
+			translator := NewChatCompletionOpenAIToGCPVertexAITranslator(tc.modelName)
 			headerMut, err := translator.ResponseHeaders(tc.headers)
 			if tc.wantError {
 				assert.Error(t, err)
@@ -161,14 +331,15 @@ func TestOpenAIToGCPVertexAITranslatorV1ChatCompletion_ResponseHeaders(t *testin
 
 func TestOpenAIToGCPVertexAITranslatorV1ChatCompletion_ResponseBody(t *testing.T) {
 	tests := []struct {
-		name           string
-		respHeaders    map[string]string
-		body           string
-		endOfStream    bool
-		wantError      bool
-		wantHeaderMut  *extprocv3.HeaderMutation
-		wantBodyMut    *extprocv3.BodyMutation
-		wantTokenUsage LLMTokenUsage
+		name              string
+		modelNameOverride string
+		respHeaders       map[string]string
+		body              string
+		endOfStream       bool
+		wantError         bool
+		wantHeaderMut     *extprocv3.HeaderMutation
+		wantBodyMut       *extprocv3.BodyMutation
+		wantTokenUsage    LLMTokenUsage
 	}{
 		{
 			name: "successful response",
@@ -258,10 +429,10 @@ func TestOpenAIToGCPVertexAITranslatorV1ChatCompletion_ResponseBody(t *testing.T
 		},
 	}
 
-	translator := NewChatCompletionOpenAIToGCPVertexAITranslator()
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			reader := bytes.NewReader([]byte(tc.body))
+			translator := NewChatCompletionOpenAIToGCPVertexAITranslator(tc.modelNameOverride)
 			headerMut, bodyMut, tokenUsage, err := translator.ResponseBody(tc.respHeaders, reader, tc.endOfStream)
 			if tc.wantError {
 				assert.Error(t, err)

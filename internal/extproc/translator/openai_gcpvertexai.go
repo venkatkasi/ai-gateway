@@ -20,19 +20,25 @@ import (
 
 // NewChatCompletionOpenAIToGCPVertexAITranslator implements [Factory] for OpenAI to GCP Gemini translation.
 // This translator converts OpenAI ChatCompletion API requests to GCP Gemini API format.
-func NewChatCompletionOpenAIToGCPVertexAITranslator() OpenAIChatCompletionTranslator {
-	return &openAIToGCPVertexAITranslatorV1ChatCompletion{}
+func NewChatCompletionOpenAIToGCPVertexAITranslator(modelNameOverride string) OpenAIChatCompletionTranslator {
+	return &openAIToGCPVertexAITranslatorV1ChatCompletion{modelNameOverride: modelNameOverride}
 }
 
-type openAIToGCPVertexAITranslatorV1ChatCompletion struct{}
+type openAIToGCPVertexAITranslatorV1ChatCompletion struct {
+	modelNameOverride string
+}
 
 // RequestBody implements [Translator.RequestBody] for GCP Gemini.
 // This method translates an OpenAI ChatCompletion request to a GCP Gemini API request.
 func (o *openAIToGCPVertexAITranslatorV1ChatCompletion) RequestBody(_ []byte, openAIReq *openai.ChatCompletionRequest, _ bool) (
 	headerMutation *extprocv3.HeaderMutation, bodyMutation *extprocv3.BodyMutation, err error,
 ) {
-	pathSuffix := buildGCPModelPathSuffix(GCPModelPublisherGoogle, openAIReq.Model, GCPMethodGenerateContent)
-
+	modelName := openAIReq.Model
+	if o.modelNameOverride != "" {
+		// Use modelName override if set.
+		modelName = o.modelNameOverride
+	}
+	pathSuffix := buildGCPModelPathSuffix(GCPModelPublisherGoogle, modelName, GCPMethodGenerateContent)
 	gcpReq, err := o.openAIMessageToGeminiMessage(openAIReq)
 	if err != nil {
 		return nil, nil, fmt.Errorf("error converting OpenAI request to Gemini request: %w", err)
@@ -42,7 +48,7 @@ func (o *openAIToGCPVertexAITranslatorV1ChatCompletion) RequestBody(_ []byte, op
 		return nil, nil, fmt.Errorf("error marshaling Gemini request: %w", err)
 	}
 
-	headerMutation, bodyMutation = buildGCPRequestMutations(pathSuffix, gcpReqBody)
+	headerMutation, bodyMutation = buildRequestMutations(pathSuffix, gcpReqBody)
 	return headerMutation, bodyMutation, nil
 }
 
@@ -100,7 +106,7 @@ func (o *openAIToGCPVertexAITranslatorV1ChatCompletion) ResponseBody(respHeaders
 		}
 	}
 
-	headerMutation, bodyMutation = buildGCPRequestMutations("", openAIRespBytes)
+	headerMutation, bodyMutation = buildRequestMutations("", openAIRespBytes)
 
 	return headerMutation, bodyMutation, usage, nil
 }
@@ -113,6 +119,18 @@ func (o *openAIToGCPVertexAITranslatorV1ChatCompletion) openAIMessageToGeminiMes
 		return gcp.GenerateContentRequest{}, err
 	}
 
+	// Convert OpenAI tools to Gemini tools.
+	tools, err := openAIToolsToGeminiTools(openAIReq.Tools)
+	if err != nil {
+		return gcp.GenerateContentRequest{}, fmt.Errorf("error converting tools: %w", err)
+	}
+
+	// Convert tool config.
+	toolConfig, err := openAIToolChoiceToGeminiToolConfig(openAIReq.ToolChoice)
+	if err != nil {
+		return gcp.GenerateContentRequest{}, fmt.Errorf("error converting tool choice: %w", err)
+	}
+
 	// Convert generation config.
 	generationConfig, err := openAIReqToGeminiGenerationConfig(openAIReq)
 	if err != nil {
@@ -121,8 +139,8 @@ func (o *openAIToGCPVertexAITranslatorV1ChatCompletion) openAIMessageToGeminiMes
 
 	gcr := gcp.GenerateContentRequest{
 		Contents:          contents,
-		Tools:             nil,
-		ToolConfig:        nil,
+		Tools:             tools,
+		ToolConfig:        toolConfig,
 		GenerationConfig:  generationConfig,
 		SystemInstruction: systemInstruction,
 	}
