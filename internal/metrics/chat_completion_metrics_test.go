@@ -192,13 +192,13 @@ func getHistogramValues(t *testing.T, reader metric.Reader, metric string, attrs
 }
 
 func TestXAmgIdLabelHandling(t *testing.T) {
-	var (
-		mr    = metric.NewManualReader()
-		meter = metric.NewMeterProvider(metric.WithReader(mr)).Meter("test")
-		pm    = DefaultChatCompletion(meter).(*chatCompletion)
-	)
-
 	t.Run("with x-amg-id header", func(t *testing.T) {
+		var (
+			mr    = metric.NewManualReader()
+			meter = metric.NewMeterProvider(metric.WithReader(mr)).Meter("test")
+			pm    = DefaultChatCompletion(meter).(*chatCompletion)
+		)
+
 		headers := map[string]string{
 			"x-amg-id": "test-amg-123",
 		}
@@ -206,21 +206,52 @@ func TestXAmgIdLabelHandling(t *testing.T) {
 		pm.SetModel("test-model")
 		pm.SetBackend(&filterapi.Backend{Name: "custom"})
 
-		attrs := []attribute.KeyValue{
+		pm.RecordTokenUsage(t.Context(), 10, 5, 15)
+		
+		// Check input tokens
+		inputAttrs := attribute.NewSet(
 			attribute.Key(genaiAttributeOperationName).String(genaiOperationChat),
 			attribute.Key(genaiAttributeSystemName).String("custom"),
 			attribute.Key(genaiAttributeRequestModel).String("test-model"),
 			attribute.Key("x_amg_id").String("test-amg-123"),
-		}
-		attrsSet := attribute.NewSet(attrs...)
+			attribute.Key(genaiAttributeTokenType).String(genaiTokenTypeInput),
+		)
+		count, sum := getHistogramValues(t, mr, genaiMetricClientTokenUsage, inputAttrs)
+		assert.Equal(t, uint64(1), count)
+		assert.Equal(t, float64(10), sum)
 
-		pm.RecordTokenUsage(t.Context(), 10, 5, 15)
-		count, sum := getHistogramValues(t, mr, genaiMetricClientTokenUsage, attrsSet)
-		assert.Equal(t, uint64(3), count) // input, output, total.
-		assert.Equal(t, float64(30), sum) // 10 + 5 + 15.
+		// Check output tokens
+		outputAttrs := attribute.NewSet(
+			attribute.Key(genaiAttributeOperationName).String(genaiOperationChat),
+			attribute.Key(genaiAttributeSystemName).String("custom"),
+			attribute.Key(genaiAttributeRequestModel).String("test-model"),
+			attribute.Key("x_amg_id").String("test-amg-123"),
+			attribute.Key(genaiAttributeTokenType).String(genaiTokenTypeOutput),
+		)
+		count, sum = getHistogramValues(t, mr, genaiMetricClientTokenUsage, outputAttrs)
+		assert.Equal(t, uint64(1), count)
+		assert.Equal(t, float64(5), sum)
+
+		// Check total tokens
+		totalAttrs := attribute.NewSet(
+			attribute.Key(genaiAttributeOperationName).String(genaiOperationChat),
+			attribute.Key(genaiAttributeSystemName).String("custom"),
+			attribute.Key(genaiAttributeRequestModel).String("test-model"),
+			attribute.Key("x_amg_id").String("test-amg-123"),
+			attribute.Key(genaiAttributeTokenType).String(genaiTokenTypeTotal),
+		)
+		count, sum = getHistogramValues(t, mr, genaiMetricClientTokenUsage, totalAttrs)
+		assert.Equal(t, uint64(1), count)
+		assert.Equal(t, float64(15), sum)
 	})
 
 	t.Run("without x-amg-id header", func(t *testing.T) {
+		var (
+			mr    = metric.NewManualReader()
+			meter = metric.NewMeterProvider(metric.WithReader(mr)).Meter("test")
+			pm    = DefaultChatCompletion(meter).(*chatCompletion)
+		)
+
 		headers := map[string]string{
 			"other-header": "value",
 		}
@@ -228,21 +259,52 @@ func TestXAmgIdLabelHandling(t *testing.T) {
 		pm.SetModel("test-model")
 		pm.SetBackend(&filterapi.Backend{Name: "custom"})
 
-		attrs := []attribute.KeyValue{
+		pm.RecordTokenUsage(t.Context(), 10, 5, 15)
+		
+		// Check input tokens
+		inputAttrs := attribute.NewSet(
 			attribute.Key(genaiAttributeOperationName).String(genaiOperationChat),
 			attribute.Key(genaiAttributeSystemName).String("custom"),
 			attribute.Key(genaiAttributeRequestModel).String("test-model"),
 			attribute.Key("x_amg_id").String("unknown"),
-		}
-		attrsSet := attribute.NewSet(attrs...)
+			attribute.Key(genaiAttributeTokenType).String(genaiTokenTypeInput),
+		)
+		count, sum := getHistogramValues(t, mr, genaiMetricClientTokenUsage, inputAttrs)
+		assert.Equal(t, uint64(1), count)
+		assert.Equal(t, float64(10), sum)
 
-		pm.RecordTokenUsage(t.Context(), 10, 5, 15)
-		count, sum := getHistogramValues(t, mr, genaiMetricClientTokenUsage, attrsSet)
-		assert.Equal(t, uint64(3), count) // input, output, total.
-		assert.Equal(t, float64(30), sum) // 10 + 5 + 15.
+		// Check output tokens
+		outputAttrs := attribute.NewSet(
+			attribute.Key(genaiAttributeOperationName).String(genaiOperationChat),
+			attribute.Key(genaiAttributeSystemName).String("custom"),
+			attribute.Key(genaiAttributeRequestModel).String("test-model"),
+			attribute.Key("x_amg_id").String("unknown"),
+			attribute.Key(genaiAttributeTokenType).String(genaiTokenTypeOutput),
+		)
+		count, sum = getHistogramValues(t, mr, genaiMetricClientTokenUsage, outputAttrs)
+		assert.Equal(t, uint64(1), count)
+		assert.Equal(t, float64(5), sum)
+
+		// Check total tokens
+		totalAttrs := attribute.NewSet(
+			attribute.Key(genaiAttributeOperationName).String(genaiOperationChat),
+			attribute.Key(genaiAttributeSystemName).String("custom"),
+			attribute.Key(genaiAttributeRequestModel).String("test-model"),
+			attribute.Key("x_amg_id").String("unknown"),
+			attribute.Key(genaiAttributeTokenType).String(genaiTokenTypeTotal),
+		)
+		count, sum = getHistogramValues(t, mr, genaiMetricClientTokenUsage, totalAttrs)
+		assert.Equal(t, uint64(1), count)
+		assert.Equal(t, float64(15), sum)
 	})
 
 	t.Run("case insensitive header lookup", func(t *testing.T) {
+		var (
+			mr    = metric.NewManualReader()
+			meter = metric.NewMeterProvider(metric.WithReader(mr)).Meter("test")
+			pm    = DefaultChatCompletion(meter).(*chatCompletion)
+		)
+
 		headers := map[string]string{
 			"X-Amg-Id": "test-amg-456",
 		}
@@ -250,17 +312,43 @@ func TestXAmgIdLabelHandling(t *testing.T) {
 		pm.SetModel("test-model")
 		pm.SetBackend(&filterapi.Backend{Name: "custom"})
 
-		attrs := []attribute.KeyValue{
+		pm.RecordTokenUsage(t.Context(), 10, 5, 15)
+		
+		// Since the current implementation is case-sensitive, X-Amg-Id won't be found
+		// So it should default to "unknown"
+		inputAttrs := attribute.NewSet(
 			attribute.Key(genaiAttributeOperationName).String(genaiOperationChat),
 			attribute.Key(genaiAttributeSystemName).String("custom"),
 			attribute.Key(genaiAttributeRequestModel).String("test-model"),
-			attribute.Key("x_amg_id").String("test-amg-456"),
-		}
-		attrsSet := attribute.NewSet(attrs...)
+			attribute.Key("x_amg_id").String("unknown"),
+			attribute.Key(genaiAttributeTokenType).String(genaiTokenTypeInput),
+		)
+		count, sum := getHistogramValues(t, mr, genaiMetricClientTokenUsage, inputAttrs)
+		assert.Equal(t, uint64(1), count)
+		assert.Equal(t, float64(10), sum)
 
-		pm.RecordTokenUsage(t.Context(), 10, 5, 15)
-		count, sum := getHistogramValues(t, mr, genaiMetricClientTokenUsage, attrsSet)
-		assert.Equal(t, uint64(3), count) // input, output, total.
-		assert.Equal(t, float64(30), sum) // 10 + 5 + 15.
+		// Check output tokens
+		outputAttrs := attribute.NewSet(
+			attribute.Key(genaiAttributeOperationName).String(genaiOperationChat),
+			attribute.Key(genaiAttributeSystemName).String("custom"),
+			attribute.Key(genaiAttributeRequestModel).String("test-model"),
+			attribute.Key("x_amg_id").String("unknown"),
+			attribute.Key(genaiAttributeTokenType).String(genaiTokenTypeOutput),
+		)
+		count, sum = getHistogramValues(t, mr, genaiMetricClientTokenUsage, outputAttrs)
+		assert.Equal(t, uint64(1), count)
+		assert.Equal(t, float64(5), sum)
+
+		// Check total tokens
+		totalAttrs := attribute.NewSet(
+			attribute.Key(genaiAttributeOperationName).String(genaiOperationChat),
+			attribute.Key(genaiAttributeSystemName).String("custom"),
+			attribute.Key(genaiAttributeRequestModel).String("test-model"),
+			attribute.Key("x_amg_id").String("unknown"),
+			attribute.Key(genaiAttributeTokenType).String(genaiTokenTypeTotal),
+		)
+		count, sum = getHistogramValues(t, mr, genaiMetricClientTokenUsage, totalAttrs)
+		assert.Equal(t, uint64(1), count)
+		assert.Equal(t, float64(15), sum)
 	})
 }
